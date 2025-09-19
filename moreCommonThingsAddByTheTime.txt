@@ -1,0 +1,71 @@
+Yes, Shakti — in a microservice project, apart from DTOs, Enums, Custom Exceptions, ErrorResponse, and JWT utils, there are a few other things that are usually kept in a common-lib so multiple microservices can reuse them. Here’s a structured list for your food delivery microservice:
+
+1️⃣ DTOs
+
+UserDto → shared across Auth, Order, and Restaurant services.
+
+LoginResponseDto → AuthService → other services may need it.
+
+OrderDto → basic info for orders that other services (like DeliveryService) may need.
+
+MenuItemDto → Restaurant menu items shared with OrderService.
+
+2️⃣ Enums
+
+Role → CUSTOMER, RESTAURANT, DELIVERY_AGENT, ADMIN.
+
+OrderStatus → PLACED, CONFIRMED, PREPARING, READY_FOR_PICKUP, PICKED_UP, DELIVERED, CANCELLED.
+
+PaymentStatus (optional) → PENDING, COMPLETED, FAILED, REFUNDED.
+
+3️⃣ Exception Handling
+
+CustomException and all specific exceptions.
+
+ErrorResponse and optional ErrorResponseBuilder.
+
+4️⃣ JWT Utils
+
+Token generation, validation, claim extraction.
+
+5️⃣ Constants / Configs
+
+ApiConstants → e.g., default page size, max retry count, default roles.
+
+Messages → shared error or success messages.
+
+public class ApiConstants {
+    public static final int DEFAULT_PAGE_SIZE = 20;
+    public static final int MAX_RETRY = 3;
+}
+
+public class Messages {
+    public static final String USER_NOT_FOUND = "User not found";
+    public static final String ORDER_NOT_FOUND = "Order not found";
+}
+
+6️⃣ Mappers / Converters (Optional)
+
+Convert Entity ↔ DTO in a reusable way using MapStruct or manual converters.
+
+Example: UserMapper, OrderMapper.
+
+7️⃣ Validation Utilities (Optional)
+
+Common validation logic for email format, phone number, password rules.
+
+✅ Recommendation for Your Learning Microservice
+
+For now, essential items to keep common:
+
+DTOs: UserDto, OrderDto, LoginResponseDto.
+
+Enums: Role, OrderStatus.
+
+Exceptions + ErrorResponse + ErrorResponseBuilder.
+
+JWT Utils.
+
+Optional: ApiConstants + Messages.
+
+Leave mappers or validators optional for later, once your microservices grow.

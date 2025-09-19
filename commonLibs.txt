@@ -1,0 +1,56 @@
+food-ordering-system/
+│
+├── common-lib/                 # Shared library
+│   ├── pom.xml
+│   └── src/main/java/com/shakti/common/
+│       ├── dto/
+│       │   ├── ApiResponse.java
+│       │   ├── ErrorResponse.java
+│       │   └── UserDto.java
+│       ├── exception/
+│       │   ├── CustomException.java
+│       │   └── GlobalExceptionHandler.java
+│       ├── utils/
+│       │   └── JwtUtils.java
+│       └── constants/
+│           └── AppConstants.java
+│
+├── auth-service/               # Handles login/register + JWT
+│   ├── pom.xml
+│   └── src/main/java/com/shakti/auth/
+│       ├── entity/UserEntity.java      # @Entity
+│       ├── repository/UserRepository.java
+│       ├── controller/AuthController.java
+│       └── service/AuthService.java
+│
+├── restaurant-service/         # Handles menus
+│   ├── pom.xml
+│   └── src/main/java/com/shakti/restaurant/
+│       ├── entity/RestaurantEntity.java
+│       ├── repository/RestaurantRepository.java
+│       ├── controller/RestaurantController.java
+│       └── service/RestaurantService.java
+│
+├── order-service/              # Handles orders
+│   ├── pom.xml
+│   └── src/main/java/com/shakti/order/
+│       ├── entity/OrderEntity.java
+│       ├── repository/OrderRepository.java
+│       ├── controller/OrderController.java
+│       └── service/OrderService.java
+│
+├── notification-service/       # Listens to RabbitMQ
+│   ├── pom.xml
+│   └── src/main/java/com/shakti/notification/
+│       ├── listener/OrderListener.java
+│       └── service/NotificationService.java
+│
+├── eureka-server/              # Service registry
+│   ├── pom.xml
+│   └── src/main/java/com/shakti/eureka/EurekaServer.java
+│
+├── api-gateway/                # API Gateway (Spring Cloud Gateway)
+│   ├── pom.xml
+│   └── src/main/java/com/shakti/gateway/ApiGatewayApp.java
+│
+└── pom.xml                     # Parent pom (if using multi-module)
