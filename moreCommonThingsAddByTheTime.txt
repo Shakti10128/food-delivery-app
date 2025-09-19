@@ -1,4 +1,3 @@
-Yes, Shakti — in a microservice project, apart from DTOs, Enums, Custom Exceptions, ErrorResponse, and JWT utils, there are a few other things that are usually kept in a common-lib so multiple microservices can reuse them. Here’s a structured list for your food delivery microservice:
 
 1️⃣ DTOs
 
