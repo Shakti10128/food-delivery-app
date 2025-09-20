@@ -14,7 +14,7 @@
 
     <groupId>com.shakti</groupId>
     <artifactId>food-delivery-app</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>pom</packaging>
 
     <name>Food Delivery Mono Repo</name>
@@ -65,7 +65,7 @@
             <dependency>
                 <groupId>com.shakti</groupId>
                 <artifactId>common-libs</artifactId>
-                <version>1.0.0</version>
+                <version>1.0.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
