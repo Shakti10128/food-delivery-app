@@ -16,43 +16,46 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 @EntityListeners(AuditingEntityListener.class)
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false,unique = true)
-    @NotBlank(message = "username can't be empty")
-    @NotNull
+    @Column(nullable = false, unique = true)
+    @NotBlank(message = "Username can't be empty")
     private String username;
 
-    @Column(nullable = false,unique = true)
-    @NotBlank(message = "email can't be empty")
-    @NotNull
+    @Column(nullable = false, unique = true)
+    @NotBlank(message = "Email can't be empty")
     @Email(message = "Please provide a valid email")
     private String email;
 
-
     @Column(nullable = false)
-    @Min(value = 5,message = "password should be atleast of 5 char")
+    @Size(min = 5, message = "Password should be at least 5 characters long")
     private String password;
 
-    @NotBlank(message = "Please specify your role")
-    @NotNull
+    @NotNull(message = "Please specify your role")
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    @Column(nullable = false)
+    private Boolean Active;
 
     @CreatedDate
     private Date createdAt;
