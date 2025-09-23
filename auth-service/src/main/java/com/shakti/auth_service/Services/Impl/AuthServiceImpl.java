@@ -1,5 +1,6 @@
 package com.shakti.auth_service.Services.Impl;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthServiceImpl implements AuthService{
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     public SignupResponseDto signUp(SignupRequestDto signupRequestDto) {
@@ -45,14 +47,21 @@ public class AuthServiceImpl implements AuthService{
         // save the user
         authRepository.save(user);
 
-        return SignupResponseDto.builder()
-                                .userId(user.getId())
-                                .email(user.getEmail())
-                                .role(user.getRole())
-                                .username(user.getUsername())
-                                .active(true)
-                                .message("Signup successfully")
-                                .build();
+        
+        // creating the response DTO
+        SignupResponseDto response = SignupResponseDto.builder()
+        .userId(user.getId())
+        .email(user.getEmail())
+        .role(user.getRole())
+        .username(user.getUsername())
+        .active(true)
+        .message("Signup successfully")
+        .build();
+
+        // Trigger the event to create profile
+        rabbitTemplate.convertAndSend("create-profile", response);
+
+        return response;
     }
     
     @Override
