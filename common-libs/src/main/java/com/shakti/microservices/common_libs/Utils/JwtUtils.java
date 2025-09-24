@@ -3,38 +3,31 @@ package com.shakti.microservices.common_libs.Utils;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
-
-import javax.crypto.SecretKey;
-
 import org.springframework.beans.factory.annotation.Value;
 
 public class JwtUtils {
 
     // Secret key for signing tokens
-    @Value("${jwt.secret-key}")
+    @Value("${jwt-secret-key}")
     private static String SECRET_KEY;
 
     // Token validity in milliseconds (1 hour)
     private static final long EXPIRATION_TIME = 60 * 60 * 1000;
 
     // ================== GENERATE TOKEN ==================
-    public static String generateToken(String subject, Map<String, Object> claims) {
+    public static String generateToken(String SECRET_KEY,String subject, Map<String, Object> claims) {
         return Jwts.builder()
                 .setClaims(claims)                 // role, other info
                 .setSubject(subject)               // usually email/username
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(getSecretKey())
+                .signWith(Keys.hmacShaKeyFor(SECRET_KEY.getBytes()))
                 .compact();
     }
 
-    private static SecretKey getSecretKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
-    }
 
     // ================== VALIDATE TOKEN ==================
     public static boolean validateToken(String token, String subject) {
