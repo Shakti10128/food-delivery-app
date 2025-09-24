@@ -7,11 +7,12 @@ import com.shakti.microservices.common_libs.Dtos.auth.SignupResponseDto;
 import com.shakti.microservices.common_libs.Dtos.auth.UserDto;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public interface AuthService {
     SignupResponseDto signUp(SignupRequestDto signupRequestDto);
 
-    SigninResponseDto signIn(SigninRequestDto signinRequestDto);
+    SigninResponseDto signIn(SigninRequestDto signinRequestDto, HttpServletResponse response);
 
     UserDto getLoggedInUser(HttpServletRequest request);
 }

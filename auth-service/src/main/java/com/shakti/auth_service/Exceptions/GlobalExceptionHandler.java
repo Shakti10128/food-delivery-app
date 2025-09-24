@@ -1,6 +1,5 @@
 package com.shakti.auth_service.Exceptions;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,7 +36,6 @@ public class GlobalExceptionHandler {
 
         errors.put("success", "false");
         errors.put("path", rq.getRequestURI());
-        errors.put("timestamp", LocalDateTime.now().toString());
         errors.put("message", "Required fields are missing");
 
 

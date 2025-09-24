@@ -13,14 +13,16 @@ import com.shakti.microservices.common_libs.Dtos.auth.SigninResponseDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SignupRequestDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SignupResponseDto;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("users/auth")
+@RequestMapping("auth")
 public class AuthController {
     private final AuthService authService;
+    
 
     @PostMapping("/signup")
     public ResponseEntity<SignupResponseDto> signUpHandler(@Valid @RequestBody SignupRequestDto signupRequestDto) {
@@ -29,9 +31,10 @@ public class AuthController {
     }
 
     @PostMapping("/signin")
-    public ResponseEntity<SigninResponseDto> signinHandler(@Valid @RequestBody SigninRequestDto signinRequestDto) {
-        SigninResponseDto response = authService.signIn(signinRequestDto);
+    public ResponseEntity<SigninResponseDto> signinHandler(@Valid @RequestBody SigninRequestDto signinRequestDto, HttpServletResponse response) {
+        System.out.println("entered into Controller");
+        SigninResponseDto resp = authService.signIn(signinRequestDto,response);
 
-        return new ResponseEntity<SigninResponseDto>(response, HttpStatus.OK);
+        return new ResponseEntity<SigninResponseDto>(resp, HttpStatus.OK);
     }
 }

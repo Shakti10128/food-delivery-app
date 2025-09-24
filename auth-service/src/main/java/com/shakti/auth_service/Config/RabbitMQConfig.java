@@ -27,6 +27,6 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(createProfilQueue).to(exchange).with("create-profile");
     }
 
-    // we will use dead leter queue to handle worst case when the RabbitMQ server is down or some
+    // we will use dead letter queue to handle worst case when the RabbitMQ server is down or some
     // other issue occur
 }
