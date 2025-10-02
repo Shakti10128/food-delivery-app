@@ -1,5 +1,6 @@
 package com.shakti.auth_service.Services.Impl;
 
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -8,22 +9,19 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shakti.auth_service.Entity.OutboxEvent;
+
 import com.shakti.auth_service.Entity.User;
 import com.shakti.auth_service.Repository.AuthRepository;
-import com.shakti.auth_service.Repository.OutboxRepository;
 import com.shakti.auth_service.Services.AuthService;
 import com.shakti.microservices.common_libs.Dtos.auth.SigninRequestDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SigninResponseDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SignupRequestDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SignupResponseDto;
 import com.shakti.microservices.common_libs.Dtos.auth.UserDto;
-import com.shakti.microservices.common_libs.Enums.EventType;
 import com.shakti.microservices.common_libs.Exceptions.CustomException;
 import com.shakti.microservices.common_libs.Exceptions.UnauthorizedException;
 import com.shakti.microservices.common_libs.Utils.JwtUtils;
+
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,13 +29,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService{
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
-    private final OutboxRepository outboxRepository;
-    private final ObjectMapper objectMapper;
     private final RedisServiceImpl redisServiceImpl;
 
     @Value("${jwt-secret-key}")
@@ -45,6 +42,7 @@ public class AuthServiceImpl implements AuthService{
 
     @Value("${refresh-token-expiry}")
     private static int refreshTokenExpiry;
+
 
 
     @Override
@@ -75,16 +73,6 @@ public class AuthServiceImpl implements AuthService{
                     .message("Signup successfully")
                     .build();
 
-            // Save Outbox event (in same transaction)
-            OutboxEvent event = new OutboxEvent();
-            event.setEventType(EventType.USER_SIGNUP);
-            try {
-                event.setPayload(objectMapper.writeValueAsString(response)); // Injected ObjectMapper
-            } catch (JsonProcessingException e) {
-                throw new CustomException(HttpStatus.EXPECTATION_FAILED.value(), "Serialization error", "Failed to serialize signup response");
-            }
-            outboxRepository.save(event);
-
             return response;
         } catch (CustomException e) {
             throw e;
@@ -97,17 +85,14 @@ public class AuthServiceImpl implements AuthService{
     public SigninResponseDto signIn(SigninRequestDto signinRequestDto,HttpServletResponse response) {
         try {
             // check the user is registered or not
-            System.out.println("checking user exist or not");
             User loggedUser = authRepository.findByEmail(signinRequestDto.getEmail())
             .orElseThrow(() -> new UnauthorizedException("Please use correct email & password"));
 
             // check password is correct or not
-            System.out.println("user exist, matching password");
             if(!passwordEncoder.matches(signinRequestDto.getPassword(), loggedUser.getPassword())) {
                 throw new UnauthorizedException("Please use correct email & password");
             }
 
-            System.out.println("password matche");
             Map<String,Object> claims = Map.of(
                 "Role",loggedUser.getRole()
             );
@@ -145,6 +130,37 @@ public class AuthServiceImpl implements AuthService{
     
     @Override
     public UserDto getLoggedInUser(HttpServletRequest request) {
-        return null;
+        try {
+            Cookie[] cookies = request.getCookies();
+            String refreshToken = null;
+
+            for(int i = 0; i < cookies.length; i++) {
+                if(cookies[i].getName().equals("refreshToken")) {
+                    // refreshToken found store it & break the loop
+                    refreshToken = cookies[i].getValue();
+                    break;
+                }
+            }
+
+            // check the refreshToken is exist or not in cookie OR it's expired or not
+            if(refreshToken == null || redisServiceImpl.isRefreshTokenExpired(refreshToken)) {
+               throw new UnauthorizedException("Please login"); 
+            }
+
+            String email = redisServiceImpl.getUserEmailByRefreshToken(refreshToken);
+            User user = authRepository.findByEmail(email).get();
+
+            return UserDto.builder()
+                          .id(user.getId())
+                          .username(user.getUsername())
+                          .email(user.getEmail())
+                          .active(user.getActive())
+                          .role(user.getRole().toString())
+                          .build();
+
+
+        } catch (UnauthorizedException e) {
+            throw e;
+        }
     }
 }

@@ -37,4 +37,11 @@ public class RedisServiceImpl implements RedisService{
             return false;
         }
     }
+
+    @Override
+    public String getUserEmailByRefreshToken(String token) {
+        String key = "refresh:" + token;
+        Object value = redisTemplate.opsForValue().get(key);
+        return value != null ? value.toString() : null;
+    }
 }
