@@ -12,10 +12,14 @@ import com.shakti.microservices.common_libs.Dtos.auth.SigninRequestDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SigninResponseDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SignupRequestDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SignupResponseDto;
+import com.shakti.microservices.common_libs.Dtos.auth.UserDto;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+
 
 @RestController
 @AllArgsConstructor
@@ -37,4 +41,11 @@ public class AuthController {
 
         return new ResponseEntity<SigninResponseDto>(resp, HttpStatus.OK);
     }
+
+    @GetMapping("/get-logged-user")
+    public ResponseEntity<UserDto> getMethodName(HttpServletRequest request) {
+        UserDto userDto = authService.getLoggedInUser(request);
+        return new ResponseEntity<UserDto>(userDto, HttpStatus.OK);
+    }
+    
 }

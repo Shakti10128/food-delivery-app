@@ -1,6 +1,5 @@
 package com.shakti.auth_service.Services.Impl;
 
-
 import java.util.Map;
 import java.util.UUID;
 
@@ -8,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 
 import com.shakti.auth_service.Entity.User;
 import com.shakti.auth_service.Repository.AuthRepository;
@@ -18,10 +16,10 @@ import com.shakti.microservices.common_libs.Dtos.auth.SigninResponseDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SignupRequestDto;
 import com.shakti.microservices.common_libs.Dtos.auth.SignupResponseDto;
 import com.shakti.microservices.common_libs.Dtos.auth.UserDto;
+import com.shakti.microservices.common_libs.Exceptions.ConflictException;
 import com.shakti.microservices.common_libs.Exceptions.CustomException;
 import com.shakti.microservices.common_libs.Exceptions.UnauthorizedException;
 import com.shakti.microservices.common_libs.Utils.JwtUtils;
-
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,11 +35,14 @@ public class AuthServiceImpl implements AuthService{
     private final PasswordEncoder passwordEncoder;
     private final RedisServiceImpl redisServiceImpl;
 
-    @Value("${jwt-secret-key}")
-    private String SECRET_KEY;
+    // @Value("${jwt-secret-key}")
+    // private String SECRET_KEY;
 
     @Value("${refresh-token-expiry}")
-    private static int refreshTokenExpiry;
+    private int refreshTokenExpiry;
+
+    @Value("${access-token-expiry}")
+    private int accessTokenExpiry;
 
 
 
@@ -86,11 +87,11 @@ public class AuthServiceImpl implements AuthService{
         try {
             // check the user is registered or not
             User loggedUser = authRepository.findByEmail(signinRequestDto.getEmail())
-            .orElseThrow(() -> new UnauthorizedException("Please use correct email & password"));
+            .orElseThrow(() -> new UnauthorizedException("Please use correct email & password."));
 
             // check password is correct or not
             if(!passwordEncoder.matches(signinRequestDto.getPassword(), loggedUser.getPassword())) {
-                throw new UnauthorizedException("Please use correct email & password");
+                throw new UnauthorizedException("Please use correct email & password.");
             }
 
             Map<String,Object> claims = Map.of(
@@ -98,7 +99,7 @@ public class AuthServiceImpl implements AuthService{
             );
 
             // generating access token and refresh token
-            String accessToken  = JwtUtils.generateToken(SECRET_KEY,loggedUser.getEmail(), claims);
+            String accessToken  = JwtUtils.generateToken(accessTokenExpiry,loggedUser.getEmail(), claims);
             String refreshToken = UUID.randomUUID().toString();
 
             Cookie refreshCookie = new Cookie(refreshToken, refreshToken);
@@ -123,15 +124,16 @@ public class AuthServiceImpl implements AuthService{
                                     .token(accessToken)
                                     .message("Logged in successfully")
                                     .build();
-        } catch (UnauthorizedException e) {
+        } catch (CustomException e) {
             throw e;
         }
     }
-    
-    @Override
-    public UserDto getLoggedInUser(HttpServletRequest request) {
+
+    private String getRefreshTokenFromCookie(HttpServletRequest request) {
         try {
             Cookie[] cookies = request.getCookies();
+            if(cookies == null) return null;
+            
             String refreshToken = null;
 
             for(int i = 0; i < cookies.length; i++) {
@@ -142,9 +144,22 @@ public class AuthServiceImpl implements AuthService{
                 }
             }
 
+            return refreshToken;
+        } catch (Exception e) {
+            System.out.println("Error while extracting the refreshToken from cookie.");
+            return null;
+        }
+    }
+    
+    @Override
+    public UserDto getLoggedInUser(HttpServletRequest request) {
+        try {
+            
+            String refreshToken = getRefreshTokenFromCookie(request);
+
             // check the refreshToken is exist or not in cookie OR it's expired or not
-            if(refreshToken == null || redisServiceImpl.isRefreshTokenExpired(refreshToken)) {
-               throw new UnauthorizedException("Please login"); 
+            if(refreshToken == null || !redisServiceImpl.isRefreshTokenValid(refreshToken)) {
+               throw new UnauthorizedException("Please login."); 
             }
 
             String email = redisServiceImpl.getUserEmailByRefreshToken(refreshToken);
@@ -159,7 +174,42 @@ public class AuthServiceImpl implements AuthService{
                           .build();
 
 
-        } catch (UnauthorizedException e) {
+        } catch (CustomException e) {
+            throw e;
+        }
+    }
+
+    @Override
+    public String getAccessToken(HttpServletRequest request) {
+
+        try {
+            String refreshToken = getRefreshTokenFromCookie(request);
+            // check the refreshToken is exist or not in cookie OR it's expired or not
+            if(refreshToken == null || !redisServiceImpl.isRefreshTokenValid(refreshToken)) {
+                throw new UnauthorizedException("Please login.");
+            }
+
+            // check either there is already accessToken active for the refreshToken
+            if(redisServiceImpl.isAccessTokenValid(refreshToken)) {
+                throw new ConflictException("Access token is still valid. Please use the existing one.");
+            }
+            
+            // access token is expired, generate a new token
+            else{
+                String email = redisServiceImpl.getUserEmailByRefreshToken(refreshToken);
+                User loggedUser = authRepository.findByEmail(email).get();
+                Map<String,Object> claims = Map.of(
+                "Role",loggedUser.getRole()
+                );
+
+                // generating access token and refresh token
+                String accessToken  = JwtUtils.generateToken(accessTokenExpiry,loggedUser.getEmail(), claims);
+                redisServiceImpl.addAccessToken(accessToken, refreshToken);
+
+                return accessToken;
+            }
+
+        } catch (CustomException e) {
             throw e;
         }
     }

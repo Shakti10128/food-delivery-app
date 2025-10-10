@@ -16,6 +16,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ErrorResponse> customExceptionHandler(CustomException ex,HttpServletRequest rq) {
         ErrorResponse error = ErrorResponse.of(ex.getStatus(), ex.getError(), ex.getMessage(), rq.getRequestURI());
