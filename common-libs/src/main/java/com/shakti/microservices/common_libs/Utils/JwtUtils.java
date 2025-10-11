@@ -14,11 +14,8 @@ public class JwtUtils {
     @Value("${jwt-secret-key}")
     private static String SECRET_KEY;
 
-    // Token validity in milliseconds (1 hour)
-    private static final long EXPIRATION_TIME = 60 * 60 * 1000;
-
     // ================== GENERATE TOKEN ==================
-    public static String generateToken(String SECRET_KEY,String subject, Map<String, Object> claims) {
+    public static String generateToken(long EXPIRATION_TIME,String subject, Map<String, Object> claims) {
         return Jwts.builder()
                 .setClaims(claims)                 // role, other info
                 .setSubject(subject)               // usually email/username
