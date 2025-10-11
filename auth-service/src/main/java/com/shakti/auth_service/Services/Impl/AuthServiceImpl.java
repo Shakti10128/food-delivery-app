@@ -19,6 +19,7 @@ import com.shakti.microservices.common_libs.Dtos.auth.UserDto;
 import com.shakti.microservices.common_libs.Exceptions.ConflictException;
 import com.shakti.microservices.common_libs.Exceptions.CustomException;
 import com.shakti.microservices.common_libs.Exceptions.UnauthorizedException;
+import com.shakti.microservices.common_libs.Redis.RedisService;
 import com.shakti.microservices.common_libs.Utils.JwtUtils;
 
 import jakarta.servlet.http.Cookie;
@@ -33,7 +34,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthServiceImpl implements AuthService{
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
-    private final RedisServiceImpl redisServiceImpl;
+    private final RedisService redisService;
 
     // @Value("${jwt-secret-key}")
     // private String SECRET_KEY;
@@ -102,14 +103,16 @@ public class AuthServiceImpl implements AuthService{
             String accessToken  = JwtUtils.generateToken(accessTokenExpiry,loggedUser.getEmail(), claims);
             String refreshToken = UUID.randomUUID().toString();
 
-            Cookie refreshCookie = new Cookie(refreshToken, refreshToken);
+            Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
             refreshCookie.setHttpOnly(true);
             refreshCookie.setSecure(true);
             refreshCookie.setPath("/auth/refresh");
             refreshCookie.setMaxAge(refreshTokenExpiry);
-
+            
             response.addCookie(refreshCookie);
-            redisServiceImpl.addRefreshToken(refreshToken, loggedUser.getEmail());
+
+            redisService.addRefreshToken(refreshToken, loggedUser.getEmail());
+            redisService.addAccessToken(accessToken, refreshToken);
 
             System.out.println("refreshToken: " + refreshToken);
             return SigninResponseDto.builder()
@@ -133,23 +136,53 @@ public class AuthServiceImpl implements AuthService{
         try {
             Cookie[] cookies = request.getCookies();
             if(cookies == null) return null;
-            
-            String refreshToken = null;
 
-            for(int i = 0; i < cookies.length; i++) {
-                if(cookies[i].getName().equals("refreshToken")) {
-                    // refreshToken found store it & break the loop
-                    refreshToken = cookies[i].getValue();
-                    break;
+            for (Cookie cookie : cookies) {
+                if ("refreshToken".equals(cookie.getName())) {
+                    return cookie.getValue();
                 }
             }
 
-            return refreshToken;
+            return null;
         } catch (Exception e) {
             System.out.println("Error while extracting the refreshToken from cookie.");
             return null;
         }
     }
+
+    @Override
+    public void signOut(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // Extract access token safely
+            String authorizationHeader = request.getHeader("Authorization");
+            String accessToken = null;
+            if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+                accessToken = authorizationHeader.substring(7);
+            }
+
+            // Extract refresh token from cookie
+            String refreshToken = getRefreshTokenFromCookie(request);
+
+            // Remove the refresh cookie
+            Cookie refreshCookie = new Cookie("refreshToken", null);
+            refreshCookie.setHttpOnly(true);
+            refreshCookie.setSecure(true);
+            refreshCookie.setPath("/auth/refresh"); // match the path you set when issuing
+            refreshCookie.setMaxAge(0); // deletes the cookie
+            response.addCookie(refreshCookie);
+
+            // Delete tokens from Redis (handle nulls inside method)
+            redisService.inValidateAccessAndRefreshToken(accessToken, refreshToken);
+
+        } catch (Exception e) {
+            throw new CustomException(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Please try again",
+                "Failed to sign out user"
+            );
+        }
+    }
+
     
     @Override
     public UserDto getLoggedInUser(HttpServletRequest request) {
@@ -158,11 +191,11 @@ public class AuthServiceImpl implements AuthService{
             String refreshToken = getRefreshTokenFromCookie(request);
 
             // check the refreshToken is exist or not in cookie OR it's expired or not
-            if(refreshToken == null || !redisServiceImpl.isRefreshTokenValid(refreshToken)) {
+            if(refreshToken == null || !redisService.isRefreshTokenValid(refreshToken)) {
                throw new UnauthorizedException("Please login."); 
             }
 
-            String email = redisServiceImpl.getUserEmailByRefreshToken(refreshToken);
+            String email = redisService.getUserEmailByRefreshToken(refreshToken);
             User user = authRepository.findByEmail(email).get();
 
             return UserDto.builder()
@@ -185,18 +218,18 @@ public class AuthServiceImpl implements AuthService{
         try {
             String refreshToken = getRefreshTokenFromCookie(request);
             // check the refreshToken is exist or not in cookie OR it's expired or not
-            if(refreshToken == null || !redisServiceImpl.isRefreshTokenValid(refreshToken)) {
+            if(refreshToken == null || !redisService.isRefreshTokenValid(refreshToken)) {
                 throw new UnauthorizedException("Please login.");
             }
 
             // check either there is already accessToken active for the refreshToken
-            if(redisServiceImpl.isAccessTokenValid(refreshToken)) {
+            if(redisService.isAccessTokenValid(refreshToken)) {
                 throw new ConflictException("Access token is still valid. Please use the existing one.");
             }
             
             // access token is expired, generate a new token
             else{
-                String email = redisServiceImpl.getUserEmailByRefreshToken(refreshToken);
+                String email = redisService.getUserEmailByRefreshToken(refreshToken);
                 User loggedUser = authRepository.findByEmail(email).get();
                 Map<String,Object> claims = Map.of(
                 "Role",loggedUser.getRole()
@@ -204,7 +237,7 @@ public class AuthServiceImpl implements AuthService{
 
                 // generating access token and refresh token
                 String accessToken  = JwtUtils.generateToken(accessTokenExpiry,loggedUser.getEmail(), claims);
-                redisServiceImpl.addAccessToken(accessToken, refreshToken);
+                redisService.addAccessToken(accessToken, refreshToken);
 
                 return accessToken;
             }

@@ -14,6 +14,8 @@ public interface AuthService {
 
     SigninResponseDto signIn(SigninRequestDto signinRequestDto, HttpServletResponse response);
 
+    void signOut(HttpServletRequest request,HttpServletResponse response);
+
     UserDto getLoggedInUser(HttpServletRequest request);
 
     String getAccessToken(HttpServletRequest request);
