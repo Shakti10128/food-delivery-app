@@ -1,38 +1,40 @@
 package com.shakti.microservices.common_libs.Redis;
 
-import java.time.Duration;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import com.shakti.microservices.common_libs.Exceptions.CustomException;
+import com.shakti.microservices.common_libs.Utils.CommonEnv;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class RedisServiceImpl implements RedisService{
 
-    @Value("${refresh-token-expiry}")
-    private int refreshTokenExpiry;
-
-    @Value("${access-token-expiry}")
-    private int accessTokenExpiry;
+    private final CommonEnv commonEnv;
     
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
-    public RedisServiceImpl(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    // Always prefix keys consistently
+    private String getRefreshKey(String refreshToken) {
+        return "refresh:" + refreshToken;
     }
 
+    private String getAccessKey(String refreshToken) {
+        return "accessToken:" + refreshToken;
+    }
+
+    
     @Override
-    public boolean isRefreshTokenValid(String token) {
-        String key = "refresh:" + token;
-        return redisTemplate.hasKey(key);
+    public boolean isRefreshTokenValid(String refreshToken) {
+        return stringRedisTemplate.hasKey(getRefreshKey(refreshToken));
     }
 
     @Override
     public boolean addRefreshToken(String refreshToken,String email) {
-        String key = "refresh:" + refreshToken;
         try {
-            redisTemplate.opsForValue().set(key, email, Duration.ofDays(refreshTokenExpiry));
+            stringRedisTemplate.opsForValue().set(getRefreshKey(refreshToken), email, commonEnv.getRefreshTokenExpiry());
             return true;
         } catch (Exception e) {
             throw new CustomException(HttpStatus.INTERNAL_SERVER_ERROR.value(),"save operation failed" , "Failed to store access token in Redis");
@@ -40,21 +42,18 @@ public class RedisServiceImpl implements RedisService{
     }
 
     @Override
-    public String getUserEmailByRefreshToken(String token) {
-        String key = "refresh:" + token;
-        Object value = redisTemplate.opsForValue().get(key);
+    public String getUserEmailByRefreshToken(String refreshToken) {
+        Object value = stringRedisTemplate.opsForValue().get(getRefreshKey(refreshToken));
         return value != null ? value.toString() : null;
     }
 
     public boolean isAccessTokenValid(String refreshToken) {
-        String key = "accessToken:" + refreshToken;
-        return redisTemplate.hasKey(key);
+        return stringRedisTemplate.hasKey(getAccessKey(refreshToken));
     }
 
     public boolean addAccessToken(String accessToken,String refreshToken) {
-        String key = "accessToken:" + refreshToken;
         try {
-            redisTemplate.opsForValue().set(key,accessToken, Duration.ofHours(accessTokenExpiry));
+            stringRedisTemplate.opsForValue().set(getAccessKey(refreshToken),accessToken, commonEnv.getAccessTokenExpiry());
             return true;
         } catch (Exception e) {
             throw new CustomException(HttpStatus.INTERNAL_SERVER_ERROR.value(),"save operation failed" , "Failed to store access token in Redis");
@@ -63,11 +62,13 @@ public class RedisServiceImpl implements RedisService{
 
     public boolean inValidateAccessAndRefreshToken(String accessToken,String refreshToken) {
         try {
-            String accessTokenKey = "accessToken:" + refreshToken;
-            String refreshTokenKey = "refresh:" + refreshToken;
+            System.out.println("Before logout: " + stringRedisTemplate.keys("*"));
 
-            redisTemplate.delete(accessTokenKey);
-            redisTemplate.delete(refreshTokenKey);
+            stringRedisTemplate.delete(getAccessKey(refreshToken));
+            stringRedisTemplate.delete(getRefreshKey(refreshToken));
+
+            System.out.println("After logout: " + stringRedisTemplate.keys("*"));
+
             return true;
         } catch (Exception e) {
             return false;
