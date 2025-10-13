@@ -3,7 +3,6 @@ package com.shakti.auth_service.Services.Impl;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,6 +19,7 @@ import com.shakti.microservices.common_libs.Exceptions.ConflictException;
 import com.shakti.microservices.common_libs.Exceptions.CustomException;
 import com.shakti.microservices.common_libs.Exceptions.UnauthorizedException;
 import com.shakti.microservices.common_libs.Redis.RedisService;
+import com.shakti.microservices.common_libs.Utils.CommonEnv;
 import com.shakti.microservices.common_libs.Utils.JwtUtils;
 
 import jakarta.servlet.http.Cookie;
@@ -35,15 +35,8 @@ public class AuthServiceImpl implements AuthService{
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
     private final RedisService redisService;
-
-    // @Value("${jwt-secret-key}")
-    // private String SECRET_KEY;
-
-    @Value("${refresh-token-expiry}")
-    private int refreshTokenExpiry;
-
-    @Value("${access-token-expiry}")
-    private int accessTokenExpiry;
+    private final JwtUtils jwtUtils;
+    private final CommonEnv commonEnv;
 
 
 
@@ -100,21 +93,22 @@ public class AuthServiceImpl implements AuthService{
             );
 
             // generating access token and refresh token
-            String accessToken  = JwtUtils.generateToken(accessTokenExpiry,loggedUser.getEmail(), claims);
+            String accessToken  = jwtUtils.generateToken(loggedUser.getEmail(), claims);
             String refreshToken = UUID.randomUUID().toString();
 
             Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
             refreshCookie.setHttpOnly(true);
             refreshCookie.setSecure(true);
-            refreshCookie.setPath("/auth/refresh");
-            refreshCookie.setMaxAge(refreshTokenExpiry);
+            refreshCookie.setPath("/");
+            // getting the refreshTokenExpiry in MS convert it into S
+            // coz cookie expect second not miliseconds
+            refreshCookie.setMaxAge((int)commonEnv.getRefreshTokenExpiry().toSeconds());
             
             response.addCookie(refreshCookie);
 
             redisService.addRefreshToken(refreshToken, loggedUser.getEmail());
             redisService.addAccessToken(accessToken, refreshToken);
 
-            System.out.println("refreshToken: " + refreshToken);
             return SigninResponseDto.builder()
                                     .user(UserDto.builder()
                                                 .id(loggedUser.getId())
@@ -156,6 +150,7 @@ public class AuthServiceImpl implements AuthService{
             // Extract access token safely
             String authorizationHeader = request.getHeader("Authorization");
             String accessToken = null;
+
             if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
                 accessToken = authorizationHeader.substring(7);
             }
@@ -167,7 +162,7 @@ public class AuthServiceImpl implements AuthService{
             Cookie refreshCookie = new Cookie("refreshToken", null);
             refreshCookie.setHttpOnly(true);
             refreshCookie.setSecure(true);
-            refreshCookie.setPath("/auth/refresh"); // match the path you set when issuing
+            refreshCookie.setPath("/"); // match the path you set when issuing
             refreshCookie.setMaxAge(0); // deletes the cookie
             response.addCookie(refreshCookie);
 
@@ -236,7 +231,7 @@ public class AuthServiceImpl implements AuthService{
                 );
 
                 // generating access token and refresh token
-                String accessToken  = JwtUtils.generateToken(accessTokenExpiry,loggedUser.getEmail(), claims);
+                String accessToken  = jwtUtils.generateToken(loggedUser.getEmail(), claims);
                 redisService.addAccessToken(accessToken, refreshToken);
 
                 return accessToken;

@@ -1,5 +1,7 @@
 package com.shakti.auth_service.Controller;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,9 +45,35 @@ public class AuthController {
     }
 
     @GetMapping("/get-logged-user")
-    public ResponseEntity<UserDto> getMethodName(HttpServletRequest request) {
+    public ResponseEntity<UserDto> getLoggedInUserHandler(HttpServletRequest request) {
         UserDto userDto = authService.getLoggedInUser(request);
         return new ResponseEntity<UserDto>(userDto, HttpStatus.OK);
+    }
+
+    @GetMapping("/accessToken/refresh") 
+    public ResponseEntity<Map<String,Object>> getNewAccessTokenHandler(HttpServletRequest request) {
+        String accessToken = authService.getAccessToken(request);
+
+        Map<String,Object> result = Map.of(
+            "success",true,
+            "message","access token issued successfully",
+            "token",accessToken
+        );
+
+        return new ResponseEntity<Map<String,Object>>(result, HttpStatus.OK);
+    }
+
+    @GetMapping("/signout")
+    public ResponseEntity<Map<String,Object>> signoutHandler(HttpServletRequest request, HttpServletResponse response) {
+
+        authService.signOut(request, response);
+
+        Map<String,Object> result = Map.of(
+            "success",true,
+            "message","signout successfully"
+        );
+
+        return new ResponseEntity<Map<String,Object>>(result, HttpStatus.OK);
     }
     
 }

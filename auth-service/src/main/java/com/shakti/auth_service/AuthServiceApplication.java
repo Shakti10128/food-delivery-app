@@ -12,7 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 // via Spring IOC
 @SpringBootApplication(scanBasePackages = {
     "com.shakti.auth_service",
-    "com.shakti.microservices.common_libs.Redis"
+    "com.shakti.microservices.common_libs",
 })
 public class AuthServiceApplication {
 	public static void main(String[] args) {

@@ -8,10 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import com.shakti.microservices.common_libs.Dtos.ErrorResponse;
 import com.shakti.microservices.common_libs.Exceptions.CustomException;
-
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
@@ -42,6 +40,14 @@ public class GlobalExceptionHandler {
 
 
         return new ResponseEntity<Map<String,String>>(errors, HttpStatus.UNAUTHORIZED);
+    }
+
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> ParentExceptionHandler(Exception ex,HttpServletRequest rq) {
+        ErrorResponse error = ErrorResponse.of(HttpStatus.INTERNAL_SERVER_ERROR.value(), "INTERNAL_SERVER_ERROR", ex.getMessage(), rq.getRequestURI());
+
+        return new ResponseEntity<ErrorResponse>(error, HttpStatus.CONFLICT);
     }
 
 }
